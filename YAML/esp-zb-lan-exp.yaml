@@ -1,0 +1,241 @@
+#based on https://github.com/mercenaruss/zigstar_gateways/blob/main/files/ESP-HOME/zigstar-gw-lan.yaml
+esphome:
+  name: esp-zb-lan-exp
+  platform: ESP32
+  board: esp32dev
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+status_led:
+  pin:
+    number: 2
+    inverted: true
+    
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO17_OUT
+  phy_addr: 1
+  
+i2c:
+  sda: 14
+  scl: 13
+  id: i2cbus
+
+dallas:
+  - pin: 16
+  
+mcp23017:
+  - id: 'mcp23017_hub'
+    address: 0x20
+    i2c_id: i2cbus
+
+binary_sensor:
+  - platform: gpio
+    name: "MCP23017 IN #1"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 0
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #2"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 1
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #3"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 2
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #4"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 3
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #5"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 4
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #6"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 5
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #7"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 6
+      mode:
+        input: true
+        pullup: false
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 IN #8"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 7
+      mode:
+        input: true
+        pullup: false
+      inverted: false    
+      
+external_components:
+  - source: github://oxan/esphome-stream-server
+  
+switch:
+  - platform: gpio
+    name: "MCP23017 OUT #1"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 8
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #2"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 9
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #3"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 10
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #4"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 11
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #5"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 12
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #6"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 13
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #7"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 14
+      mode:
+        output: true
+      inverted: false
+  - platform: gpio
+    name: "MCP23017 OUT #8"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 15
+      mode:
+        output: true
+      inverted: false
+  - platform: restart
+    name: "Gateway Restart"
+
+  - platform: gpio
+    pin: 32
+    id: zRST_gpio
+    inverted: yes
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: "Zigbee RST"
+    icon: mdi:toggle-switch
+    id: zRST
+    turn_on_action:
+      - switch.turn_on: zRST_gpio
+      - delay: 15ms
+      - switch.turn_off: zRST_gpio
+      
+  - platform: gpio
+    pin: 33
+    name: "Zigbee BSL"
+    icon: mdi:toggle-switch
+    id: zBSL
+    inverted: yes
+    restore_mode: ALWAYS_OFF
+    internal: true
+    
+  - platform: template
+    name: "Firmware Update"
+    icon: mdi:cellphone-arrow-down
+    turn_on_action:
+      - script.execute: fw_update_mode
+    turn_off_action:
+      - switch.toggle: zRST
+
+#Update CC2652P/CC2652RB Firmware
+script:
+  - id: fw_update_mode
+    then:
+      - switch.turn_on: zBSL
+      - delay: 1s
+      - switch.turn_on: zRST_gpio
+      - delay: 1s
+      - switch.turn_off: zRST_gpio
+      - logger.log: "Delaying ~10 seconds for TI chip to be ready"
+      - delay: 10s
+      - switch.turn_off: zBSL
+      - logger.log: "Update with cc2538-bsl tool now!"
+      - logger.log: "Usage: cc2538-bsl.py -p socket://ip_or_hostname:6638 -evw firmware.hex"
+
+#UART Settings
+uart:
+  id: uart_bus
+  rx_pin: GPIO4
+  tx_pin: GPIO5
+  baud_rate: 115200
+
+#Serial Bridge Settings,uncomment #port to change default 6638 TCP port
+stream_server:
+  uart_id: uart_bus
+#  port: 1234
